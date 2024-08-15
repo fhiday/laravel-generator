@@ -1,8 +1,14 @@
 import os
-from sqlalchemy import inspect
 
 def generate_view(table):
     os.makedirs(f"output/resources/views/{table.name}", exist_ok=True)
+    
+    def get_foreign_key_column(col):
+        if not col.foreign_keys:
+            return col.name
+        else:
+            fk = next(iter(col.foreign_keys))
+            return f"{fk.column.table.name}->{fk.column.name}"
     
     # Template view index
     index_template = f"""@extends('layouts.app')
@@ -27,7 +33,7 @@ def generate_view(table):
         @if ($data->isEmpty())
             <div class="alert alert-warning">No data available.</div>
             @if(Request::input('search'))
-                <a href="{{{{ route('{table.name}.create') }}}}" class="btn btn-secondary btn-sm mb-3">
+                <a href="{{{{ route('{table.name}.index') }}}}" class="btn btn-secondary btn-sm mb-3">
                 <i class="bi bi-chevron-left"></i> Back
                 </a>
             @endif
@@ -45,7 +51,7 @@ def generate_view(table):
                             <tbody>
                                 @foreach ($data as $item)
                                     <tr>
-                                        {''.join([f'<td>{{{{ $item->{col} }}}}</td>' if not table.columns[col].foreign_keys else f'<td>{{ $item->{col}->related_model_name }}</td>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
+                                        {''.join([f'<td>{{{{ $item->{col} }}}}</td>' if not table.columns[col].foreign_keys else f'<td>{{{{ $item->{get_foreign_key_column(table.columns[col])} }}}}</td>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
                                         <td>
                                             @can('{table.name}-edit')
                                             <a href="{{{{ route('{table.name}.edit', $item->id) }}}}" class="btn btn-warning btn-sm">Edit</a>
@@ -107,7 +113,7 @@ def generate_view(table):
             <div class="card-body">
                 <form action="{{{{ route('{table.name}.store') }}}}" method="POST">
                     @csrf
-                    {''.join([f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><input type="{get_input_type(table.columns[col])}" name="{col}" id="{col}" class="form-control" required></div>' if not table.columns[col].foreign_keys else f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><select name="{col}" id="{col}" class="form-control" required> {col}_options </select></div>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
+                    {''.join([f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><input type="{get_input_type(table.columns[col])}" name="{col}" id="{col}" class="form-control" required></div>' if not table.columns[col].foreign_keys else f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><select name="{col}" id="{col}" class="form-control" required> <option value="">Select {col.capitalize()}</option>  {get_foreign_key_select(table.columns[col])} </select></div>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
                     <a href="{{{{ route('{table.name}.index') }}}}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
@@ -137,7 +143,7 @@ def generate_view(table):
                 <form action="{{{{ route('{table.name}.update', $data->id) }}}}" method="POST">
                     @csrf
                     @method('PATCH')
-                    {''.join([f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><input type="{get_input_type(table.columns[col])}" name="{col}" id="{col}" class="form-control" value="{{{{ $data->{col} }}}}" required></div>' if not table.columns[col].foreign_keys else f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><select name="{col}" id="{col}" class="form-control" required> {col}_options </select></div>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
+                    {''.join([f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><input type="{get_input_type(table.columns[col])}" name="{col}" id="{col}" class="form-control" value="{{{{ $data->{col} }}}}" required></div>' if not table.columns[col].foreign_keys else f'<div class="mb-3"><label for="{col}" class="form-label">{col.capitalize()}</label><select name="{col}" id="{col}" class="form-control" required> <option>Select {col.capitalize()}</option> {get_foreign_key_select_edit(table.columns[col])} </select></div>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
                     <a href="{{{{ route('{table.name}.index') }}}}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
@@ -209,3 +215,18 @@ def get_input_type(column):
         return 'checkbox'
     else:
         return 'text'
+    
+    
+def get_foreign_key_select(col):
+    if not col.foreign_keys:
+        return f'<option value="{{{{ $item->{col.name} }}}}">{{{{ $item->{col.name} }}}}</option>'
+    else:
+        fk = next(iter(col.foreign_keys))
+        return f'@foreach(${fk.column.table.name} as ${fk.column.table.name}_items) \n <option value="{{{{ ${fk.column.table.name}_items->{fk.column.name} }}}}">{{{{ ${fk.column.table.name}_items->{fk.column.name} }}}}</option> \n @endforeach'
+    
+def get_foreign_key_select_edit(col):
+    if not col.foreign_keys:
+        return f'<option value="{{{{ $data->{col.name} }}}}">{{{{ $data->{col.name} }}}}</option>'
+    else:
+        fk = next(iter(col.foreign_keys))
+        return f'@foreach(${fk.column.table.name} as ${fk.column.table.name}_items) \n <option value="{{{{ ${fk.column.table.name}_items->{fk.column.name} }}}}" {{{{ $data->{col.name}  == ${fk.column.table.name}_items->{fk.column.name} ? "selected" : "" }}}}>{{{{ ${fk.column.table.name}_items->{fk.column.name} }}}}</option> \n @endforeach'

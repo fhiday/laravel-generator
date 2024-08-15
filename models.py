@@ -15,7 +15,7 @@ def generate_model(table):
             related_column = next(iter(col.foreign_keys)).column.name
             related_table = next(iter(col.foreign_keys)).column.table.name
             related_model = related_table.capitalize()
-            relations.append(f"public function {related_table}() {{ return $this->belongsTo({related_model}::class,'{related_column}'); }}")
+            relations.append(f"public function {related_table}() {{ return $this->belongsTo({related_model}::class,'{col.name}'); }}")
 
     if not has_foreign_key:
         relations.append("// Tidak ada foreign key yang ditemukan")
