@@ -4,8 +4,20 @@ def generate_controller(table):
     
     primary_key = next((col.name for col in table.columns if col.primary_key), 'id')
     
+    # mencari array terakhir untuk index pencarian
+    SearchArray = [f"->orWhere('{col}', 'like', \"%{{$search}}%\")" for col in table.columns.keys() if col not in [primary_key, 'created_at', 'updated_at']]
+    SearchArray[-1] += ';'
+
+    #search foreign key relationts to compact
+    CompactArray = [f"{next(iter(col.foreign_keys)).column.table.name}" for col in table.columns if col.foreign_keys]
+    if not CompactArray:
+        CompactArray = ""
+    else:
+       CompactArray = [f", compact('{'\', \''.join(CompactArray)}')"]
+
     # Mencari foreign key dan membuat relasi
     relations = []
+    relations_with = []
     has_foreign_key = False
     for col in table.columns:
         if col.foreign_keys:
@@ -13,6 +25,12 @@ def generate_controller(table):
             related_table = next(iter(col.foreign_keys)).column.table.name
             related_model = related_table.capitalize()
             relations.append(f"${related_table} = {related_model}::all();")
+            relations_with.append(related_table)
+
+    if relations_with:
+        relations_with_str = f"with('{'\',\''.join(relations_with)}')->"
+    else:
+        relations_with_str = ""
 
     controller_template = f"""<?php
 
@@ -22,8 +40,7 @@ use App\\Models\\{model_name};
 use Illuminate\\Http\\Request;
 use Illuminate\\Support\\Facades\\Validator;
 {''.join([f'use App\\Models\\{next(iter(col.foreign_keys)).column.table.name.capitalize()};\n' for col in table.columns if col.foreign_keys])}
-use Illuminate\\View\\View;
-use Illuminate\\Http\\RedirectResponse;
+
 
 class {controller_name} extends Controller
 {{
@@ -39,20 +56,17 @@ class {controller_name} extends Controller
     public function index(Request $request)
     {{
         $search = $request->input('search');
-        $data = {model_name}::where(function ($query) use ($search) {{
-            foreach ({model_name}::getSearchableColumns() as $column) {{
-                $query->orWhere($column, 'LIKE', '%' . $search . '%');
-            }}
-        }})
-        ->latest()
-        ->paginate(10);
+        $data = {model_name}::{relations_with_str}when($search, function ($query) use ($search) {{
+            $query->where('{primary_key}', 'like', "%{{$search}}%")
+                {'\n\t\t\t\t'.join(SearchArray)}
+        }})->latest()->paginate(10);
         return view('{table.name}.index', compact('data'));
     }}
 
     public function create()
     {{
         {''.join(relations)}
-        return view('{table.name}.create', compact({', '.join([f"'{next(iter(col.foreign_keys)).column.table.name}'" for col in table.columns if col.foreign_keys])}));
+        return view('{table.name}.create'{','.join(CompactArray)});
     }}
 
     public function store(Request $request)

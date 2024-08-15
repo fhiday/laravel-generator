@@ -26,7 +26,7 @@ def display_header():
 def hacker_text(text):
     for char in text:
         print(char, end='', flush=True)
-        time.sleep(0.05)
+        time.sleep(0.01)
     print()
 
 # Fungsi untuk membuat direktori jika belum ada

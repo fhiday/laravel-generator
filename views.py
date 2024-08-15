@@ -45,7 +45,7 @@ def generate_view(table):
                             <tbody>
                                 @foreach ($data as $item)
                                     <tr>
-                                        {''.join([f'<td>{{{{ $item->{col} }}}}</td>' if not table.columns[col].foreign_keys else f'<td>{{{{ $item->{col}->related_model_name }}}}</td>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
+                                        {''.join([f'<td>{{{{ $item->{col} }}}}</td>' if not table.columns[col].foreign_keys else f'<td>{{ $item->{col}->related_model_name }}</td>' for col in table.columns.keys() if col not in ['id', 'created_at', 'updated_at']])}
                                         <td>
                                             @can('{table.name}-edit')
                                             <a href="{{{{ route('{table.name}.edit', $item->id) }}}}" class="btn btn-warning btn-sm">Edit</a>

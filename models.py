@@ -12,9 +12,10 @@ def generate_model(table):
     for col in table.columns:
         if col.foreign_keys:
             has_foreign_key = True
+            related_column = next(iter(col.foreign_keys)).column.name
             related_table = next(iter(col.foreign_keys)).column.table.name
             related_model = related_table.capitalize()
-            relations.append(f"public function {related_table}() {{ return $this->belongsTo({related_model}::class); }}")
+            relations.append(f"public function {related_table}() {{ return $this->belongsTo({related_model}::class,'{related_column}'); }}")
 
     if not has_foreign_key:
         relations.append("// Tidak ada foreign key yang ditemukan")
@@ -25,14 +26,24 @@ namespace App\\Models;
 
 use Illuminate\\Database\\Eloquent\\Factories\\HasFactory;
 use Illuminate\\Database\\Eloquent\\Model;
+use Spatie\\Activitylog\\LogOptions;
+use Spatie\\Activitylog\\Traits\\LogsActivity;
 
 class {model_name} extends Model
 {{
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $table = '{table.name}';
     protected $fillable = [{', '.join([f"'{col}'" for col in fillable_columns])}];
     protected $primaryKey = '{primary_key}';
+
+    public function getActivitylogOptions(): LogOptions
+    {{
+        return LogOptions::defaults()
+            ->logOnly([{', '.join([f"'{col}'" for col in fillable_columns])}])
+            ->setDescriptionForEvent(fn(string $eventName) => "This model has been {{$eventName}}")
+            ->useLogName('{model_name}');
+    }}
 
     {' '.join(relations)}
 }}
