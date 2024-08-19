@@ -1,4 +1,4 @@
-def generate_model(table):
+def generate_model(table, dbname):
     model_name = table.name.capitalize()
     columns = table.columns.keys()
     primary_key = next((col.name for col in table.columns if col.primary_key), 'id')
@@ -48,5 +48,5 @@ class {model_name} extends Model
     {' '.join(relations)}
 }}
 """
-    with open(f"output/app/Models/{model_name}.php", "w") as file:
+    with open(f"output/"+dbname+"/app/Models/"+model_name+".php", "w") as file:
         file.write(model_template)

@@ -1,4 +1,4 @@
-def generate_controller(table):
+def generate_controller(table, dbname):
     model_name = table.name.capitalize()
     controller_name = f"{model_name}Controller"
     
@@ -105,7 +105,7 @@ class {controller_name} extends Controller
         ]);
 
         if ($validator->fails()) {{
-            return redirect()->route('{table.name}.edit', ['id' => $id])
+            return redirect()->route('{table.name}.edit', $id)
                              ->withErrors($validator)
                              ->withInput();
         }}
@@ -123,5 +123,5 @@ class {controller_name} extends Controller
     }}
 }}
 """
-    with open(f"output/app/Http/Controllers/{controller_name}.php", "w") as file:
+    with open(f"output/"+dbname+"/app/Http/Controllers/"+controller_name+".php", "w") as file:
         file.write(controller_template)

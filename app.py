@@ -2,9 +2,17 @@ from sqlalchemy import create_engine, MetaData, text
 from sqlalchemy.exc import OperationalError
 from models import generate_model
 from controllers import generate_controller
-from views import generate_view
+#from views import generate_view
 from routes import generate_routes
-from auth import generate_auth
+#from auth import generate_auth
+from template.index_template import generate_index_template
+from template.create_template import generate_create_template
+from template.edit_template import generate_edit_template
+from template.show_template import generate_show_template
+
+#include component
+from component.syncGit import copy_repo
+
 import pymysql
 import time
 import os
@@ -83,6 +91,18 @@ while True:
 # Update DATABASE_URI dengan nama database yang dipilih
 DATABASE_URI += dbname
 
+#tanyakan repo github
+while True:
+    generate_laravel = input("apakah anda ingin menambahkan laravel? (y/n)").strip().lower()
+    if generate_laravel in ['y', 'n']:
+        break
+    else:
+        print("Input tidak valid, silakan masukkan 'yes' atau 'no'.")
+
+if generate_laravel == 'y':
+    # Jalankan proses clone repo
+    copy_repo(dbname)
+
 # Koneksi ulang dengan nama database yang dipilih
 engine = create_engine(DATABASE_URI)
 metadata = MetaData()
@@ -90,6 +110,9 @@ metadata.reflect(bind=engine)
 
 # Tampilkan nama-nama tabel yang ada
 tables = list(metadata.tables.keys())
+excluded_tables = ['activity_log','cache', 'cache_locks', 'failed_jobs','job_batches','jobs','migrations','model_has_permissions','model_has_roles','password_reset_tokens','permissions','role_has_permissions','roles','sessions','users']  # add the table names you want to exclude
+metadata.tables = {table: metadata.tables[table] for table in tables if table not in excluded_tables}
+
 hacker_text("Daftar tabel yang tersedia:")
 for i, table in enumerate(tables):
     hacker_text(f"{i + 1}. {table}")
@@ -117,40 +140,53 @@ print_progress_bar(0, total_tables, prefix='Progress:', suffix='Complete', lengt
 
 for i, table in enumerate(selected_tables, 1):
     # Periksa direktori jika belum ada, buat direktori tersebut
-    ensure_directory_exists('output/app/Http/Controllers')
-    ensure_directory_exists('output/app/Models')
-    ensure_directory_exists('output/resources/views')
+    ensure_directory_exists('output/'+dbname+'/app/Http/Controllers')
+    ensure_directory_exists('output/'+dbname+'/app/Models')
+    ensure_directory_exists('output/'+dbname+'/resources/views')
 
-    generate_model(table)
-    generate_controller(table)
-    generate_view(table)
+    generate_model(table, dbname)
+    generate_controller(table, dbname)
+    generate_index_template(table, dbname)
+    generate_create_template(table, dbname)
+    generate_edit_template(table, dbname)
+    generate_show_template(table, dbname)
+    #generate_view(table)
     
     # Update progress bar
     print_progress_bar(i, total_tables, prefix='Progress:', suffix='Complete', length=50)
 
-ensure_directory_exists('output/routes')
-generate_routes([t.name for t in selected_tables])
+ensure_directory_exists('output/'+dbname+'/routes')
+generate_routes([t.name for t in selected_tables], dbname)
 
 # Konfirmasi untuk generate auth
+#while True:
+#    auth_choice = input("Apakah Anda ingin membuat auth? (yes/no): ").strip().lower()
+#    if auth_choice in ['yes', 'no']:
+#        break
+#    else:
+#        print("Input tidak valid, silakan masukkan 'yes' atau 'no'.")
+
+#if auth_choice == 'yes':
+#    generate_auth()
+    # Tambahkan progress loading di bawah generate auth
+#    print_progress_bar(1, 1, prefix='Progress:', suffix='Auth Complete', length=50)
+
+# Laporan selesai
+
+print("\033[92m" + "Proses pembuatan model, controller, view, dan route telah selesai!" + "\033[0m")
+
+# Tanyakan kepada user apakah mereka ingin mengulang proses dari awal
 while True:
-    auth_choice = input("Apakah Anda ingin membuat auth? (yes/no): ").strip().lower()
-    if auth_choice in ['yes', 'no']:
+    repeat_choice = input("Apakah Anda ingin mengulang proses dari awal? (yes/no): ").strip().lower()
+    if repeat_choice in ['yes', 'no']:
         break
     else:
         print("Input tidak valid, silakan masukkan 'yes' atau 'no'.")
 
-if auth_choice == 'yes':
-    generate_auth()
-    # Tambahkan progress loading di bawah generate auth
-    print_progress_bar(1, 1, prefix='Progress:', suffix='Auth Complete', length=50)
-
-# Laporan selesai
-print("\033[92m" + """
-    ███████╗██╗  ██╗    ███████╗██╗  ██╗
-    ██╔════╝██║  ██║    ██╔════╝██║  ██║
-    ███████╗███████║    █████╗  ███████║
-    ╚════██║██╔══██║    ██╔══╝  ██╔══██║
-    ███████║██║  ██║    ██║     ██║  ██║
-    ╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝
-    """ + "\033[0m")
-print("\033[92m" + "Proses pembuatan model, controller, view, dan route telah selesai!" + "\033[0m")
+if repeat_choice == 'yes':
+    # Jalankan proses dari awal
+    os.system('python ' + sys.argv[0])
+else:
+    # Keluar dari program
+    print("Terima kasih telah menggunakan program ini!")
+    sys.exit(0)

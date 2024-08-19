@@ -1,6 +1,6 @@
 import os
 
-def generate_routes(table_names):
+def generate_routes(table_names, dbname):
     routes = ["<?php"]
     for table in table_names:
         model_name = table.capitalize()
@@ -12,11 +12,11 @@ def generate_routes(table_names):
         routes.append("")
 
     # Membuat direktori jika belum ada
-    os.makedirs("output/routes", exist_ok=True)
+    os.makedirs("output/"+dbname+"/routes", exist_ok=True)
 
-    with open("output/routes/web.php", "w") as file:
+    with open("output/"+dbname+"/routes/web.php", "w") as file:
         file.write("\n".join(routes))
 
 # Contoh penggunaan
-table_names = ["users", "posts", "comments"]
-generate_routes(table_names)
+#table_names = ["users", "posts", "comments"]
+#generate_routes(table_names)
